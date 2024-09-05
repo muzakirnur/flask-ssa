@@ -1,0 +1,49 @@
+{% extends 'base.html' %} {% block title %}Perhitungan Singular Spectrum
+Analysis{% endblock %} {% block content %}
+<div class="w-1/2 mx-auto">
+  <form action="/perhitungan" method="post" enctype="multipart/form-data">
+    <div class="bg-gray-200 p-4 rounded-lg">
+      <h1 class="mb-4 font-semibold text-lg">Form Hitung</h1>
+      <div class="mb-4">
+        <label
+          for="number-input"
+          class="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+          >Window Length</label
+        >
+        <input
+          type="number"
+          id="number-input"
+          min="1"
+          max="36"
+          name="window_length"
+          aria-describedby="helper-text-explanation"
+          class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+          placeholder="window Length"
+          required
+        />
+      </div>
+      <div class="mb-4">
+        <label
+          class="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+          for="file_input"
+          >Upload Excel File</label
+        >
+        <input
+          class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 dark:text-gray-400 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400"
+          id="file_input"
+          name="file"
+          type="file"
+        />
+      </div>
+      <div class="mt-4 text-center">
+        <button
+          type="submit"
+          class="text-white bg-blue-700 hover:bg-blue-800 focus:outline-none focus:ring-4 focus:ring-blue-300 font-medium rounded-full text-sm px-5 py-2.5 text-center me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
+        >
+          Hitung
+        </button>
+      </div>
+    </div>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{% block title %}{% endblock %}</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/flowbite@2.5.1/dist/flowbite.min.css"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <body class="font-sans antialiased">
+      <div class="min-h-screen bg-white dark:bg-gray-900">
+        <header>
+          <nav
+            class="bg-red-500 border-gray-200 px-4 lg:px-6 py-2.5 dark:bg-gray-800"
+          >
+            <div
+              class="flex flex-wrap justify-between items-center mx-auto max-w-screen-xl"
+            >
+              <a href="/" class="items-center mx-auto">
+                <span
+                  class="self-center text-xl font-semibold text-white whitespace-nowrap dark:text-white"
+                  >PLN Bireuen
+                </span>
+              </a>
+            </div>
+          </nav>
+        </header>
+          <div class="p-4 mx-auto">
+              <div class="py-4 mt-10">
+                {% block content %} {% endblock %}
+              </div>
+          </div>
+      </div>
+    <script src="https://cdn.jsdelivr.net/npm/flowbite@2.5.1/dist/flowbite.min.js"></script>
+  </body>
+</html>
