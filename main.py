@@ -20,6 +20,44 @@ def plot_to_base64(fig):
     buf.seek(0)
     return base64.b64encode(buf.read()).decode('utf-8')
 
+def Hankelise(Y):
+    """
+    Hankelises the matrix Y, returning H(Y).
+    """
+    L, K = Y.shape
+    transpose = False
+    if L > K:
+        Y = Y.T
+        L, K = Y, L
+        transpose = True
+
+    HY = np.zeros((L,K))
+    
+    for m in range(L):
+        for n in range(K):
+            s = m+n
+            if 0 <= s <= L-1:
+                for l in range(0,s+1):
+                    HY[m,n] += 1/(s+1)*Y[l, s-l]    
+            elif L <= s <= K-1:
+                for l in range(0,L-1):
+                    HY[m,n] += 1/(L-1)*Y[l, s-l]
+            elif K <= s <= K+L-2:
+                for l in range(s-K+1,L):
+                    HY[m,n] += 1/(K+L-s-1)*Y[l, s-l]
+    if transpose:
+        return HY.T
+    else:
+        return HY
+
+def Y_to_TS(Y_i):
+    """Rata-rata diagonal dari matriks dasar tertentu, Y_i, sesuai deret waktu."""
+    # ubah urutan ordering
+    Y_rev = Y_i[::-1]
+    
+    # Full credit to Mark Tolonen at https://stackoverflow.com/a/6313414 for this one:
+    return np.array([Y_rev.diagonal(i).mean() for i in range(-Y_i.shape[0]+1, Y_i.shape[1])])
+
 def perform_ssa(series, window_length):
     n = len(series)
     if window_length >= n:
@@ -51,6 +89,7 @@ def perhitungan():
         if 'file' not in request.files:
             return redirect(request.url)
         file = request.files['file']
+        window = int(request.form['window_length'])
         if file.filename == '':
             return redirect(request.url)
         if file and allowed_file(file.filename):
@@ -58,58 +97,81 @@ def perhitungan():
             filepath = f"{app.config['UPLOAD_FOLDER']}/{filename}"
             file.save(filepath)
 
-            # read the excel file
+            # Read the Excel file
             df = pd.read_excel(filepath)
 
             # Check that the required columns are present
             if 'tanggal' not in df.columns or 'kwh' not in df.columns:
-                return "Error: The file must contain 'tanggal' and 'kwh' columns."
+                raise ValueError("Error: The file must contain 'tanggal' and 'kwh' columns.")
 
-            # Convert 'tanggal' to datetime and ensure 'kwh' is numeric
-            df['tanggal'] = pd.to_datetime(df['tanggal'])
-            df['kwh'] = pd.to_numeric(df['kwh'], errors='coerce')
+            dataX = np.array(df['tanggal'])
+            dataY = np.array(df['kwh'])
 
-            # Drop rows with missing values in 'kwh'
-            df = df.dropna(subset=['kwh'])
+            # Create a single figure
+            fig, axs = plt.subplots(3, 2, figsize=(24, 18))
+            axs = axs.flatten()  # Flatten the 2D array of axes for easy indexing
 
-            # Perform SSA on the 'kwh' column
-            series = df['kwh'].values
-            tanggal = df['tanggal']
-            window_length = 12  # Updated window length
-
-            try:
-                trend, seasonal = perform_ssa(series, window_length)
-            except ValueError as e:
-                return str(e)
-
-            # Ensure that trend and seasonal components align with the length of the original series
-            extended_tanggal = pd.date_range(start=tanggal.iloc[0], periods=len(trend), freq='D')
-            
-            # Plot components
-            fig, ax = plt.subplots(3, 1, figsize=(12, 15))
-            
             # Original Time Series
-            ax[0].plot(tanggal, series, label='Original Time Series')
-            ax[0].legend(loc='upper right')
-            ax[0].set_title('Original Time Series')
-            ax[0].set_xlabel('Tanggal')
-            ax[0].set_ylabel('kwh')
+            axs[0].plot(dataX, dataY)
+            axs[0].set_title("Original Time Series")
 
-            # Trend Component
-            ax[1].plot(extended_tanggal, trend, label='Trend Component', color='orange')
-            ax[1].legend(loc='upper right')
-            ax[1].set_title('Trend Component')
-            ax[1].set_xlabel('Tanggal')
-            ax[1].set_ylabel('Trend')
+            # Length Data Frame
+            N = len(dataX)
 
-            # Seasonal Component
-            ax[2].plot(extended_tanggal, seasonal, label='Seasonal Component', color='green')
-            ax[2].legend(loc='upper right')
-            ax[2].set_title('Seasonal Component')
-            ax[2].set_xlabel('Tanggal')
-            ax[2].set_ylabel('Seasonal')
+            # Window Length
+            L = window
 
+            # Define K
+            K = N - L + 1
+
+            Y = np.column_stack([dataY[i:i + L] for i in range(0, K)])
+            X = np.column_stack([dataX[i:i + L] for i in range(0, K)])
+
+            # Matrice Lintasan
+            im = axs[1].imshow(Y, aspect='auto', cmap='viridis')
+            axs[1].set_xlabel("Panjang Lintasan L")
+            axs[1].set_ylabel("Panjang Lintasan K")
+            fig.colorbar(im, ax=axs[1], fraction=0.046, pad=0.04)
+            axs[1].set_title("Matriks Lintasan Pada Data Tersebut")
+
+            # Mencari Rank Matriks Y
+            d = np.linalg.matrix_rank(Y)
+
+            # SVD Matriks X
+            U, Sigma, V = np.linalg.svd(Y)
+            V = V.T
+
+            eigen = np.linalg.eig(np.dot(Y, Y.T))
+            lambda_i = [eigen[0][i] for i in range(d)]
+
+            Y_elem = np.array([Sigma[i] * np.outer(U[:, i], V[:, i]) for i in range(d)])
+
+            # Components Extraction
+            Ftrend = Y_to_TS(Y_elem[[0, 3, 4]].sum(axis=0))
+            Fperiodic = Y_to_TS(Y_elem[[1, 2]].sum(axis=0))
+            Fnoise = Y_to_TS(Y_elem[5:].sum(axis=0))
+
+            # Plot SSA Components
+            components = [("Trend", Ftrend),
+                        ("Periodicity", Fperiodic),
+                        ("Noise", Fnoise)]
+
+            for n, (name, ssa_comp) in enumerate(components, start=2):  # Start from the 3rd subplot
+                axs[n].plot(dataX, ssa_comp)
+                axs[n].set_title(name, fontsize=16)
+                axs[n].set_xticks([])
+
+            # Data tanpa noise
+            lat_without_noise = Y_to_TS(Y_elem[0:5].sum(axis=0))
+            axs[5].plot(dataX, dataY, label='Original Data')
+            axs[5].plot(dataX, lat_without_noise, label='Data tanpa Noise', color='orange')
+            axs[5].set_title("Data tanpa Noise")
+            axs[5].legend()
+
+            # Adjust layout
             plt.tight_layout()
+
+            # Save or show the figure
             img = plot_to_base64(fig)
             plt.close(fig)
 
